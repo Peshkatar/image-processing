@@ -23,7 +23,8 @@ if __name__ == "__main__":
     # display_image(img, label)
 
     # Model initialization + training + inference
-    model = MiniConvNet().to("mps")
+    device = torch.device("mps" if torch.mps.is_available() else "cpu")
+    model = MiniConvNet().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
 
@@ -34,12 +35,13 @@ if __name__ == "__main__":
         optimizer=optimizer,
         criterion=criterion,
         n_epochs=10,
-        device="mps",
+        device=device,
     )
 
     trainer()
 
-    output = model(train_features[0].squeeze())
+    # Inference
+    output = model(train_features[0].unsqueeze(0).to(device))
     _, predicted = torch.max(output, 1)
     print(f"Predicted: {predicted.item()}")
     print(f"Actual: {train_labels[0].item()}")
