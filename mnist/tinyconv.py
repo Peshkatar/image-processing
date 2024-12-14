@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MiniConvNet(nn.Module):
+# TODO: use nn.Sequential to simplify the code
+class TinyConv(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         # 1 channel input, 12 output channels, 3x3 kernel
@@ -12,7 +13,7 @@ class MiniConvNet(nn.Module):
         # 12 input channels, 12 output channels, 3x3 kernel
         self.conv2 = nn.Conv2d(12, 12, (3, 3))
         self.pool2 = nn.MaxPool2d((2, 2))
-        # Flattened size: 12 * 5 * 5 = 300
+        # flattened size: 12 * 5 * 5 = 300
         self.fc = nn.Linear(12 * 5 * 5, 24)
         self.out = nn.Linear(24, 10)
 
@@ -22,17 +23,17 @@ class MiniConvNet(nn.Module):
         X = F.relu(self.conv2(X))
         X = self.pool2(X)
         # Flatten
-        X = torch.flatten(X, start_dim=1)  # Flatten all dimensions except batch
+        X = torch.flatten(X, 1)  # flatten all dimensions except batch
         X = F.relu(self.fc(X))
-        # Linear output layer (10 classes)
+        # linear output layer (10 classes)
         X = self.out(X)
         return X
 
 
 if __name__ == "__main__":
-    net = MiniConvNet()
+    net = TinyConv()
     print(net)
 
-    X = torch.randn(1, 1, 28, 28)  # Batch size 1, 1 channel, 28x28 input
+    X = torch.randn(1, 1, 28, 28)  # batch size 1, 1 channel, 28x28 input
     output = net(X)
-    print(f"Output shape: {output.shape}")  # Expected: torch.Size([1, 10])
+    print(f"Output shape: {output.shape}")  # expected: torch.Size([1, 10])
