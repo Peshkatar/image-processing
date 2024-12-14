@@ -1,7 +1,6 @@
 import torch
-from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from torchvision import datasets, transforms, utils
 
 import matplotlib.pyplot as plt
 
@@ -9,20 +8,20 @@ import matplotlib.pyplot as plt
 def load_mnist_data(
     batch_size: int = 64,
     data_transforms: transforms.Compose = transforms.Compose([transforms.ToTensor()]),
-) -> tuple[DataLoader, DataLoader]:
-    train_data = MNIST(
+) -> tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+    train_data = datasets.MNIST(
         root="data", train=True, transform=data_transforms, download=True
     )
-    test_data = MNIST(
+    test_data = datasets.MNIST(
         root="data", train=False, transform=data_transforms, download=True
     )
 
-    train_loader = DataLoader(
+    train_loader = torch.utils.data.DataLoader(
         dataset=train_data,
         batch_size=batch_size,
         shuffle=True,
     )
-    test_loader = DataLoader(
+    test_loader = torch.utils.data.DataLoader(
         dataset=test_data,
         batch_size=batch_size,
         shuffle=True,
@@ -30,9 +29,10 @@ def load_mnist_data(
     return train_loader, test_loader
 
 
-def display_image(img: torch.Tensor, label: torch.Tensor) -> None:
-    plt.imshow(img, cmap="gray")
-    plt.title(label)
+def display_image(images: torch.Tensor) -> None:
+    grid_img = utils.make_grid(images)
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
+    plt.title("A single batch of images")
     plt.show()
 
 
