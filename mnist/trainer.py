@@ -1,9 +1,11 @@
 import torch
-from torch.utils.data import DataLoader
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
+# TODO: fix the typing
+# TODO: add validation step
 class Trainer:
     def __init__(
         self,
@@ -11,9 +13,9 @@ class Trainer:
         train_loader: DataLoader,
         test_loader: DataLoader,
         optimizer: torch.optim,
-        criterion: nn,
+        criterion: torch.nn,
         n_epochs: int = 10,
-        device: str = "cpu",
+        device: str = torch.device,
         debug: bool = False,
     ) -> None:
         self.model = model
@@ -42,15 +44,23 @@ class Trainer:
         running_loss = 0.0
 
         for batch_idx, (features, labels) in enumerate(progress_bar, 1):
+            # load data into respective device
             features, labels = features.to(self.device), labels.to(self.device)
 
+            # zero the parameter gradients
+            # this is because gradients are accumulated in PyTorch
+            # so we need to zero them out at each iteration
+            # if we don't do this, gradients will be accumulated to existing gradients
+            # and this will lead to unexpected results
             self.optimizer.zero_grad()
 
+            # forward + backward + optimize
             outputs = self.model(features)
             loss = self.criterion(outputs, labels)
             loss.backward()
             self.optimizer.step()
 
+            # print statistics
             running_loss += loss.item()
             progress_bar.set_postfix(
                 Loss=f"{running_loss / batch_idx:.4f}",
@@ -66,7 +76,21 @@ class Trainer:
 
         return running_loss / len(self.train_loader)
 
+    # TODO: decouple accuracy from test
+    # TODO: fix the typing
     @torch.no_grad()
     def test(self):
-        # Add test functionality here
-        pass
+        correct, total = 0, 0
+        # since we're not training, we don't need to calculate the gradients for our outputs
+        for features, labels in self.test_loader:
+            features, labels = features.to(self.device), labels.to(self.device)
+            # calculate outputs by running images through the network
+            outputs = self.model(features)
+            # the class with the highest energy is what we choose as prediction
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        print(
+            f"Accuracy of the network on the 10000 test images: {100 * correct // total} %"
+        )
