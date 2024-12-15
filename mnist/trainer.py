@@ -1,49 +1,53 @@
+from typing import Callable
+
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+import torch.utils.data.dataloader
 from tqdm import tqdm
 
 
-# TODO: fix the typing
-# TODO: add validation step
 class Trainer:
     def __init__(
         self,
         model: nn.Module,
-        train_loader: DataLoader,
-        test_loader: DataLoader,
-        optimizer: torch.optim,
-        criterion: torch.nn,
+        train_loader: torch.utils.data.DataLoader,
+        val_loader: torch.utils.data.DataLoader,
+        test_loader: torch.utils.data.DataLoader,
+        optimizer: torch.optim.Optimizer,
+        criterion: nn.Module,
+        metric: Callable[[int, int], float],
         n_epochs: int = 10,
-        device: str = torch.device,
+        device: torch.device = torch.device("cpu"),
         debug: bool = False,
     ) -> None:
-        self.model = model
-        self.train_loader = train_loader
-        self.test_loader = test_loader
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.n_epochs = n_epochs
-        self.device = device
-        self.debug = debug
+        self.model: nn.Module = model
+        self.train_loader: torch.utils.data.DataLoader = train_loader
+        self.val_loader: torch.utils.data.DataLoader = val_loader
+        self.test_loader: torch.utils.data.DataLoader = test_loader
+        self.optimizer: torch.optim.Optimizer = optimizer
+        self.criterion: nn.Module = criterion
+        self.metric: Callable[[int, int], float] = metric
+        self.n_epochs: int = n_epochs
+        self.device: torch.device = device
 
     def __call__(self) -> None:
-        with tqdm(range(self.n_epochs), desc="Training", unit="epoch") as epochs:
-            for epoch in epochs:
-                # Train for one epoch
-                epoch_loss = self.train_step(epoch)
-                epochs.set_postfix(
-                    {"Loss": f"{epoch_loss:.4f}"}
-                )  # Update progress bar with loss
-                print(f"Epoch {epoch+1}/{self.n_epochs}, Loss: {epoch_loss:.4f}")
+        """Train the model for n_epochs."""
+        for epoch in range(self.n_epochs):
+            # Train for one epoch
+            epoch_loss = self.train_step(epoch)
+            # Validate after each epoch
+            val_accuracy = self.validate(self.val_loader)
+            print(
+                f"Epoch {epoch+1}/{self.n_epochs}, Loss: {epoch_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%"
+            )
 
     def train_step(self, epoch: int) -> float:
-        progress_bar = tqdm(
-            self.train_loader, desc=f"Epoch {epoch+1}/{self.n_epochs}", leave=False
-        )
+        """Train the model for one epoch."""
         running_loss = 0.0
 
-        for batch_idx, (features, labels) in enumerate(progress_bar, 1):
+        for features, labels in tqdm(
+            self.train_loader, desc=f"Epoch {epoch+1}/{self.n_epochs}", leave=False
+        ):
             # load data into respective device
             features, labels = features.to(self.device), labels.to(self.device)
 
@@ -62,35 +66,19 @@ class Trainer:
 
             # print statistics
             running_loss += loss.item()
-            progress_bar.set_postfix(
-                Loss=f"{running_loss / batch_idx:.4f}",
-                LR=f"{self.optimizer.param_groups[0]['lr']:.6f}",
-            )
-
-        if self.debug:
-            print("Model is training on: ", next(self.model.parameters()).device)
-            print(
-                f"Batch {batch_idx}, Features: {features.shape}, Labels: {labels.shape}"
-            )
-            print(f"Data is loaded to {self.device}")
 
         return running_loss / len(self.train_loader)
 
-    # TODO: decouple accuracy from test
-    # TODO: fix the typing
     @torch.no_grad()
-    def test(self):
+    def validate(self, dataloader: torch.utils.data.DataLoader) -> float:
+        """Validate the model on the validation or test dataset."""
+        self.model.eval()
         correct, total = 0, 0
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        for features, labels in self.test_loader:
+        for features, labels in dataloader:
             features, labels = features.to(self.device), labels.to(self.device)
-            # calculate outputs by running images through the network
             outputs = self.model(features)
-            # the class with the highest energy is what we choose as prediction
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-
-        print(
-            f"Accuracy of the network on the 10000 test images: {100 * correct // total} %"
-        )
+        self.model.train()
+        return self.metric(correct, total)
