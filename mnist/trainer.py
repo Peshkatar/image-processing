@@ -1,84 +1,109 @@
+"""Training utilities for PyTorch models with metrics tracking."""
+
+from dataclasses import dataclass
 from typing import Callable
 
 import torch
-import torch.nn as nn
-import torch.utils.data.dataloader
+from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
+@dataclass
+class TrainingMetrics:
+    """Container for training metrics."""
+
+    epoch_loss: float
+    accuracy: float
+
+
 class Trainer:
+    """Class for training and evaluating a model."""
+
     def __init__(
         self,
         model: nn.Module,
-        train_loader: torch.utils.data.DataLoader,
-        val_loader: torch.utils.data.DataLoader,
-        test_loader: torch.utils.data.DataLoader,
         optimizer: torch.optim.Optimizer,
         criterion: nn.Module,
         metric: Callable[[int, int], float],
         n_epochs: int = 10,
         device: torch.device = torch.device("cpu"),
-        debug: bool = False,
     ) -> None:
-        self.model: nn.Module = model
-        self.train_loader: torch.utils.data.DataLoader = train_loader
-        self.val_loader: torch.utils.data.DataLoader = val_loader
-        self.test_loader: torch.utils.data.DataLoader = test_loader
-        self.optimizer: torch.optim.Optimizer = optimizer
-        self.criterion: nn.Module = criterion
-        self.metric: Callable[[int, int], float] = metric
-        self.n_epochs: int = n_epochs
-        self.device: torch.device = device
+        self.model = model
+        self.optimizer = optimizer
+        self.criterion = criterion
+        self.metric = metric
+        self.n_epochs = n_epochs
+        self.device = device
+        self.model.to(self.device)
 
-    def __call__(self) -> None:
-        """Train the model for n_epochs."""
+    def fit(
+        self,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        callback: Callable[[TrainingMetrics], None] | None = None,
+    ) -> list[TrainingMetrics]:
+        """Train the model and return metrics history."""
+        metrics_history = []
+
         for epoch in range(self.n_epochs):
-            # Train for one epoch
-            epoch_loss = self.train_step(epoch)
-            # Validate after each epoch
-            val_accuracy = self.validate(self.val_loader)
-            print(
-                f"Epoch {epoch+1}/{self.n_epochs}, Loss: {epoch_loss:.4f}, Val Accuracy: {val_accuracy:.2f}%"
-            )
+            epoch_loss = self._train_epoch(train_loader, epoch)
+            accuracy = self.validate(val_loader)
 
-    def train_step(self, epoch: int) -> float:
+            metrics = TrainingMetrics(epoch_loss=epoch_loss, accuracy=accuracy)
+            metrics_history.append(metrics)
+
+            if callback:
+                callback(metrics)
+            else:
+                print(
+                    f"Epoch {epoch + 1}/{self.n_epochs}, "
+                    f"Loss: {metrics.epoch_loss:.4f}, "
+                    f"Val Accuracy: {metrics.accuracy:.2f}%"
+                )
+
+        return metrics_history
+
+    def _train_epoch(self, dataloader: DataLoader, epoch: int) -> float:
         """Train the model for one epoch."""
+        self.model.train()
         running_loss = 0.0
 
         for features, labels in tqdm(
-            self.train_loader, desc=f"Epoch {epoch+1}/{self.n_epochs}", leave=False
+            dataloader, desc=f"Epoch {epoch + 1}/{self.n_epochs}"
         ):
-            # load data into respective device
-            features, labels = features.to(self.device), labels.to(self.device)
+            loss = self._train_step(features, labels)
+            running_loss += loss
 
-            # zero the parameter gradients
-            # this is because gradients are accumulated in PyTorch
-            # so we need to zero them out at each iteration
-            # if we don't do this, gradients will be accumulated to existing gradients
-            # and this will lead to unexpected results
-            self.optimizer.zero_grad()
+        return running_loss / len(dataloader)
 
-            # forward + backward + optimize
-            outputs = self.model(features)
-            loss = self.criterion(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
+    def _train_step(self, features: torch.Tensor, labels: torch.Tensor) -> float:
+        """Execute single training step."""
+        
+        features = features.to(self.device)
+        labels = labels.to(self.device)
 
-            # print statistics
-            running_loss += loss.item()
+        self.optimizer.zero_grad()
+        outputs = self.model(features)
+        loss = self.criterion(outputs, labels)
+        loss.backward()
+        self.optimizer.step()
 
-        return running_loss / len(self.train_loader)
+        return loss.item()
 
-    @torch.no_grad()
-    def validate(self, dataloader: torch.utils.data.DataLoader) -> float:
+    @torch.inference_mode()
+    def validate(self, dataloader: DataLoader) -> float:
         """Validate the model on the validation or test dataset."""
         self.model.eval()
         correct, total = 0, 0
+
         for features, labels in dataloader:
-            features, labels = features.to(self.device), labels.to(self.device)
+            features = features.to(self.device)
+            labels = labels.to(self.device)
+
             outputs = self.model(features)
             _, predicted = torch.max(outputs, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-        self.model.train()
+
         return self.metric(correct, total)
