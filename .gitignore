@@ -1,6 +1,7 @@
 # Custom
 *TODO.md
-*/checkpoints/*
+checkpoints/*
+data/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
