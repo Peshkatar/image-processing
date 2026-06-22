@@ -1,4 +1,9 @@
+from pathlib import Path
+
+import torch
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset, random_split
+from torchvision.transforms.functional import pil_to_tensor
 
 
 def load_dataset(
@@ -40,3 +45,12 @@ def load_dataset(
         for d in [train_data, test_data, val_data]
         if d is not None
     )
+
+
+def add_gaussian_noise(img: torch.Tensor, sigma: float) -> torch.Tensor:
+    return img + torch.normal(0, sigma, size=img.shape, dtype=torch.float32)
+
+
+def load_image(path: str | Path, normalize: bool = True) -> torch.Tensor:
+    img = pil_to_tensor(Image.open(path))
+    return img / 255 if normalize else img

@@ -1,7 +1,8 @@
 # Custom
-*TODO.md
-checkpoints/*
-data/*
+TODO.md
+checkpoints/
+data/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

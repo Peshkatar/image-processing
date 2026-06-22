@@ -1,14 +1,12 @@
 """Main module for training and evaluating a TinyConv model on the MNIST dataset."""
 
-# TODO: add user input for model selection
-
 import torch
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor
 
 from eigen.data import load_dataset
 from eigen.metrics import accuracy
-from eigen.plotting import display_image_grid
+from eigen.plotting import plot_image_grid
 from eigen.trainer import Trainer
 from models.tiny_conv import TinyConv
 
@@ -34,7 +32,7 @@ def main() -> None:
         f"Labels batch shape: {labels.size()}",
         sep="\n",
     )
-    display_image_grid(images)
+    plot_image_grid(images, ax_kws=dict(title="A single batch of images"))
 
     # model initialization + training + inference
     model = TinyConv()
@@ -62,7 +60,7 @@ def main() -> None:
     torch.onnx.export(
         model,
         images.to(device),
-        "../checkpoints/TinyConv/tinyconv.onnx",
+        "checkpoints/TinyConv/tinyconv.onnx",
         input_names=["input"],
         output_names=["output"],
     )

@@ -6,41 +6,46 @@ based on the Deep Image Prior paper (https://arxiv.org/abs/1711.10925).
 import torch
 from torch import nn
 
+from eigen.data import load_image
+from eigen.plotting import plot_image_grid
+
 
 class DeepImagePrior(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, num_channels: int) -> None:
         super().__init__()
 
         # Convolutional layers
         self.features = nn.Sequential(
-            # 1 channel input, 12 output channels, 3x3 kernel
-            nn.Conv2d(1, 12, (3, 3)),
+            # 1 input image, 12 output channels, 3x3 kernel
+            nn.Conv2d(num_channels, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
             nn.ReLU(),
-            nn.MaxPool2d((2, 2)),
-            # 12 input channels, 12 output channels, 3x3 kernel
-            nn.Conv2d(12, 12, (3, 3)),
+            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
             nn.ReLU(),
-            nn.MaxPool2d((2, 2)),
-        )
-        # Fully connected layers
-        self.classifier = nn.Sequential(
-            # flattened size: 12 * 5 * 5 = 300
-            nn.Linear(12 * 5 * 5, 24),
+            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
             nn.ReLU(),
-            nn.Linear(24, 10),
+            # 12 input channels, 1 output channel, 3x3 kernel
+            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.ReLU(),
+            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.ReLU(),
+            nn.Conv2d(12, num_channels, (3, 3), padding=(1, 1)),
+            nn.ReLU(),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = self.classifier(x)
-        return x
+        return self.features(x)
 
 
 if __name__ == "__main__":
-    net = DeepImagePrior()
-    print(net)
+    img = load_image("data/snail.jpg")
+    C, W, H = img.shape
+    print("Shape: ", img.shape)
 
-    test_input = torch.randn(1, 1, 28, 28)  # batch size 1, 1 channel, 28x28 input
-    output = net(test_input)
-    print(f"Output shape: {output.shape}")  # expected: torch.Size([1, 10])
+    z = torch.rand(C, W, H)
+    print(z.shape)
+
+    net = DeepImagePrior(C)
+    print(net)
+    output = net(z)
+    print(f"Output shape: {output.shape}")
+    plot_image_grid([img, z, output.detach()])
