@@ -4,7 +4,6 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.data._utils.collate import default_collate_err_msg_format
 
 from eigen.data import add_gaussian_noise, load_image
 from eigen.metrics import mean_squared_error
@@ -17,14 +16,14 @@ PATH = Path("data/snail.jpg")
 
 
 class CustomImageDataset(Dataset):
-    def __init__(self, img: torch.Tensor, img_label: torch.Tensor):
+    def __init__(self, img: torch.Tensor, img_label: torch.Tensor) -> None:
         self.img = img
         self.img_label = img_label
 
-    def __len__(self):
+    def __len__(self) -> int:
         return 1
 
-    def __getitem__(self, idx):
+    def __getitem__(self, _) -> tuple[torch.Tensor, torch.Tensor]:
         return self.img, self.img_label
 
 
@@ -54,13 +53,13 @@ def main() -> None:
         device=device,
     )
 
-    z = torch.rand(C, W, H)
+    z = torch.rand(C, W, H, device=device)
     data = CustomImageDataset(z, img_noisy)
     train_loader = DataLoader(data, batch_size=1, shuffle=False)
 
     trainer.fit(train_loader, train_loader)
 
-    output = model(z.to(device)).to("cpu")
+    output = model(z).to("cpu")
     plot_image_grid([img, img_noisy, z, output.detach()], grid_kws=dict(nrow=2))
 
     # serialize model to onnx
@@ -70,10 +69,6 @@ def main() -> None:
         "checkpoints/DeepImagePrior/deep_image_prior.onnx",
         input_names=["input"],
         output_names=["output"],
-        dynamic_axes={
-            "input": {0: "batch_size", 2: "width", 3: "height"},
-            "output": {0: "batch_size", 2: "width", 3: "height"},
-        },
     )
 
 
