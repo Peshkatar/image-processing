@@ -46,11 +46,9 @@ def load_dataset(
         if d is not None
     )
 
-
-def add_gaussian_noise(img: torch.Tensor, sigma: float) -> torch.Tensor:
-    return img + torch.normal(0, sigma, size=img.shape, dtype=torch.float32)
-
-
 def load_image(path: str | Path, normalize: bool = True) -> torch.Tensor:
     img = pil_to_tensor(Image.open(path))
     return img / 255 if normalize else img
+
+def add_gaussian_noise(img: torch.Tensor, sigma: float) -> torch.Tensor:
+    return img + torch.normal(0, sigma, size=img.shape, dtype=torch.float32)

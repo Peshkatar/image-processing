@@ -5,6 +5,7 @@ description = "package for image processing with deep learning, using PyTorch"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "ipykernel>=7.3.0",
     "matplotlib>=3.10.7",
     "onnx>=1.19.1",
     "onnxscript>=0.5.6",
