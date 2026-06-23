@@ -16,19 +16,22 @@ class DeepImagePrior(nn.Module):
 
         # Convolutional layers
         self.features = nn.Sequential(
-            # 1 input image, 12 output channels, 3x3 kernel
-            nn.Conv2d(num_channels, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            # 1 input image, 64 output channels, 3x3 kernel, 1x1 padding
+            nn.Conv2d(num_channels, 64, (3, 3), padding=(1, 1)),
             nn.ReLU(),
-            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
             nn.ReLU(),
-            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
             nn.ReLU(),
-            # 12 input channels, 1 output channel, 3x3 kernel
-            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
             nn.ReLU(),
-            nn.Conv2d(12, 12, (3, 3), padding=(1, 1)),  # fix channels if RGB
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
             nn.ReLU(),
-            nn.Conv2d(12, num_channels, (3, 3), padding=(1, 1)),
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
+            nn.ReLU(),
+            nn.Conv2d(64, 64, (3, 3), padding=(1, 1)),  
+            nn.ReLU(),
+            nn.Conv2d(64, num_channels, (3, 3), padding=(1, 1)),
             nn.ReLU(),
         )
 
